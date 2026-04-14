@@ -8,9 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:sirec_control/servicios/servicio_grabacion.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import '../audios_page.dart';
 
 class BotonPanico extends StatefulWidget {
   final String familiaId;
@@ -442,114 +439,30 @@ Widget build(BuildContext context) {
   final Color buttonColor = _isPanicActive ? Colors.orange : Colors.red;
   final String buttonText = _isPanicActive ? 'Detener' : 'Pánico';
 
-  return Column(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      SizedBox(
-        width: 250,
-        height: 250,
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _isProcessing ? Colors.grey : buttonColor,
-            shape: const CircleBorder(),
-            elevation: 8,
-          ),
-          onPressed: _togglePanicMode,
-          child: _isProcessing
-              ? const CircularProgressIndicator(color: Colors.white)
-              : Center(
-                  child: Text(
-                    buttonText,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 28,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+  return SizedBox(
+    width: 160,
+    height: 160,
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: _isProcessing ? Colors.grey : buttonColor,
+        shape: const CircleBorder(),
+        elevation: 8,
+      ),
+      onPressed: _togglePanicMode,
+      child: _isProcessing
+          ? const CircularProgressIndicator(color: Colors.white)
+          : Center(
+              child: Text(
+                buttonText,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 22,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
-        ),
-      ),
-      const SizedBox(height: 60),
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _buildActionItem(
-            icon: Icons.camera_alt,
-            label: "Foto",
-            onPressed: _tomarFoto,
-          ),
-          _buildActionItem(
-            icon: Icons.folder_shared,
-            label: "Archivos",
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AudiosPage())),
-          ),
-        ],
-      )
-    ],
-  );
-}
-
-Widget _buildActionItem({required IconData icon, required String label, required VoidCallback onPressed}) {
-  return Column(
-    children: [
-      IconButton(
-        icon: Icon(icon, size: 35, color: Colors.blue[900]),
-        onPressed: onPressed,
-      ),
-      Text(label, style: TextStyle(color: Colors.blue[900], fontWeight: FontWeight.w600)),
-    ],
-  );
-}
-
-Future<void> _tomarFoto() async {
-  // Verificar el estado actual del permiso de cámara
-  var status = await Permission.camera.status;
-
-  if (status.isPermanentlyDenied) {
-    // Si el usuario marcó "No volver a preguntar", debemos enviarlo a Ajustes
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text("Permiso Requerido"),
-          content: const Text("El acceso a la cámara está desactivado. Para capturar evidencia, por favor actívalo en los ajustes del sistema."),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                openAppSettings();
-              },
-              child: const Text("Ir a Ajustes"),
+              ),
             ),
-          ],
-        ),
-      );
-    }
-    return;
-  }
-
-  if (!status.isGranted) {
-    // Solicitar el permiso (muestra el popup del sistema)
-    status = await Permission.camera.request();
-    if (!status.isGranted) return; // Si el usuario cancela el popup, no hacemos nada
-  }
-
-  final ImagePicker picker = ImagePicker();
-  final XFile? image = await picker.pickImage(source: ImageSource.camera);
-
-  if (image != null) {
-    final directory = await getApplicationDocumentsDirectory();
-    final String path = '${directory.path}/panic_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
-    await image.saveTo(path);
-    
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Foto de emergencia guardada.')),
-      );
-    }
-  }
+    ),
+  );
 }
-
 }

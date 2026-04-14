@@ -1,13 +1,20 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:sirec_control/reutilizables/boton_panico.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import '../audios_page.dart';
 import 'dart:async';
 
 class MapaPage extends StatefulWidget {
-  const MapaPage({super.key});
+  final String familiaId;
+  const MapaPage({super.key, required this.familiaId});
 
   @override
   State<MapaPage> createState() => _MapaPageState();
@@ -95,23 +102,14 @@ class _MapaPageState extends State<MapaPage> {
   /// Suscripción a la familia del usuario
   Future<void> _subscribeFamily() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null || widget.familiaId.isEmpty) return;
 
-    final userDoc =
-        await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).get();
-    final data = userDoc.data();
-    if (data == null || data['idfamilia'] == null) {
-      print('⚠️ Usuario no tiene idFamilia asignado');
-      return;
-    }
-
-    final familyId = data['idfamilia'];
-    print('🟢 Usuario pertenece a la familia: $familyId');
+    print('🟢 Suscribiéndose a la familia: ${widget.familiaId}');
 
     // 🔹 Suscribirse al documento de la familia
     familySubscription = FirebaseFirestore.instance
         .collection('familias')
-        .doc(familyId)
+        .doc(widget.familiaId)
         .snapshots()
         .listen((doc) {
       final familyData = doc.data();
@@ -120,8 +118,11 @@ class _MapaPageState extends State<MapaPage> {
       final miembros = familyData['miembros'] as List<dynamic>?;
 
       if (miembros == null) return;
-
-      miembrosFamilia = miembros.map((m) => Map<String, dynamic>.from(m)).toList();
+      
+      if (!mounted) return;
+      setState(() {
+        miembrosFamilia = miembros.map((m) => Map<String, dynamic>.from(m)).toList();
+      });
 
       for (var miembro in miembrosFamilia) {
         final uid = miembro['uid'];
@@ -138,7 +139,7 @@ class _MapaPageState extends State<MapaPage> {
         final lat = miembro['latitud'];
         final lon = miembro['longitud'];
 
-        if (rol == 'hijo' && lat != null && lon != null && miembroUid != user.uid) {
+        if (lat != null && lon != null && miembroUid != user.uid) {
           try {
             final latNum = double.parse(lat.toString());
             final lonNum = double.parse(lon.toString());
@@ -223,6 +224,42 @@ class _MapaPageState extends State<MapaPage> {
     } catch (_) {}
   }
 
+  Future<void> _tomarFoto() async {
+    var status = await Permission.camera.status;
+    if (status.isPermanentlyDenied) {
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text("Permiso Requerido"),
+            content: const Text("El acceso a la cámara está desactivado. Actívalo en ajustes."),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+              TextButton(onPressed: () { Navigator.pop(ctx); openAppSettings(); }, child: const Text("Ir a Ajustes")),
+            ],
+          ),
+        );
+      }
+      return;
+    }
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
+      if (!status.isGranted) return;
+    }
+
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.camera);
+
+    if (image != null) {
+      final directory = await getApplicationDocumentsDirectory();
+      final String path = '${directory.path}/panic_photo_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      await image.saveTo(path);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Foto de emergencia guardada.')));
+      }
+    }
+  }
+
   // Construccion de la interfaz 
   @override
   Widget build(BuildContext context) {
@@ -304,102 +341,101 @@ class _MapaPageState extends State<MapaPage> {
                 Positioned(
                   bottom: 20,
                   right: 20,
-                  child: FloatingActionButton(
-                    backgroundColor: Colors.blueGrey,
-                    onPressed: _centrarEnUsuario,
-                    child: const Icon(Icons.my_location, color: Colors.white),
+                  child: Row(
+                    children: [
+                      FloatingActionButton(
+                        heroTag: "fab_location",
+                        backgroundColor: Colors.blueGrey,
+                        onPressed: _centrarEnUsuario,
+                        child: const Icon(Icons.my_location, color: Colors.white),
+                      ),
+                      const SizedBox(width: 10),
+                      FloatingActionButton(
+                        heroTag: "fab_foto",
+                        backgroundColor: Colors.white,
+                        onPressed: _tomarFoto,
+                        child: Icon(Icons.camera_alt, color: Colors.blue[900]),
+                      ),
+                    ],
                   ),
                 ),
                 Positioned(
-  bottom: 90,
-  right: 20,
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      // Mostrar miembros con nombre
-      if (mostrarFamilia)
-        ...miembrosFamilia
-    .where((m) {
-      final rol = m["rol"]?.toString().toLowerCase() ?? "";
-      final lat = m["latitud"];
-      final lon = m["longitud"];
-      final uid = m["uid"];
-
-      // ❌ No mostrar padre ni administrador
-      if (rol == "padre" || rol == "administrador") return false;
-
-      // ❌ No mostrar usuario actual
-      if (uid == FirebaseAuth.instance.currentUser?.uid) return false;
-
-      // ❌ No mostrar miembros sin coordenadas
-      if (lat == null || lon == null) return false;
-
-      return true;
-    })
-    .map((m) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.15),
-                    blurRadius: 5,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Text(
-                m["nombre"] ?? "Sin nombre",
-                style: const TextStyle(
-                  color: Colors.black87,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                  bottom: 20,
+                  left: 20,
+                  child: BotonPanico(familiaId: widget.familiaId),
                 ),
-              ),
-            ),
-
-            FloatingActionButton(
-              heroTag: "fab_${m["uid"]}",
-              mini: true,
-              backgroundColor: Colors.blue[700],
-              onPressed: () {
-                _centrarEnMiembro(m);
-                setState(() => mostrarFamilia = false);
-              },
-              child: const Icon(Icons.person),
-            ),
-          ],
-        ),
-      );
-    }),
-
-
-      // FAB PRINCIPAL (abrir/cerrar menú)
-      FloatingActionButton(
-        heroTag: "fab_principal",
-        backgroundColor: Colors.red,
-        onPressed: () {
-          setState(() => mostrarFamilia = !mostrarFamilia);
-        },
-        child: Icon(
-          mostrarFamilia ? Icons.close : Icons.group,
-        ),
-      ),
-    ],
-  ),
-)
-
-
+                // Lógica de miembros y botón de grupo (Solo Padres/Tutores/Admin)
+                Positioned(
+                  bottom: 100,
+                  right: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      if (mostrarFamilia)
+                        ...miembrosFamilia
+                            .where((m) =>
+                                m["uid"] != FirebaseAuth.instance.currentUser?.uid &&
+                                m["latitud"] != null)
+                            .map((m) => Container(
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white,
+                                          borderRadius: BorderRadius.circular(15),
+                                          boxShadow: const [
+                                            BoxShadow(color: Colors.black26, blurRadius: 2)
+                                          ],
+                                        ),
+                                        child: Text(
+                                          m["nombre"]?.split(" ")[0] ?? "Usuario",
+                                          style: const TextStyle(
+                                              fontSize: 12, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      FloatingActionButton(
+                                        heroTag: "fab_mem_${m["uid"]}",
+                                        mini: true,
+                                        backgroundColor: Colors.blue[700],
+                                        onPressed: () => _centrarEnMiembro(m),
+                                        child: const Icon(Icons.person, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                )),
+                      const SizedBox(height: 15),
+                      // El botón de grupo solo es visible para Padre, Tutor o Administrador
+                      if (_esUsuarioAutorizado())
+                        FloatingActionButton(
+                          heroTag: "fab_principal",
+                          backgroundColor: mostrarFamilia ? Colors.grey : Colors.red[900],
+                          onPressed: () => setState(() => mostrarFamilia = !mostrarFamilia),
+                          child: Icon(mostrarFamilia ? Icons.close : Icons.group,
+                              color: Colors.white),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
     );
+  }
+
+  bool _esUsuarioAutorizado() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return false;
+
+    final miDatos = miembrosFamilia.firstWhere(
+      (m) => m['uid'] == currentUser.uid,
+      orElse: () => {},
+    );
+
+    final rol = miDatos['rol']?.toString().toLowerCase() ?? '';
+    return rol == 'padre' || rol == 'administrador' || rol == 'tutor';
   }
 }

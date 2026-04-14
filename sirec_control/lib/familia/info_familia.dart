@@ -25,6 +25,46 @@ class InfoFamilia extends StatelessWidget {
     return FirebaseFirestore.instance.collection('familias').doc(idFamilia).get();
   }
 
+  Future<void> _expulsarMiembro(BuildContext context, String miembroUid, String idFamilia, List miembrosActuales) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Expulsar miembro'),
+        content: const Text('¿Estás seguro de que deseas eliminar a este miembro de la familia?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Expulsar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    try {
+      // 1. Remover de la lista de miembros de la familia
+      final nuevosMiembros = miembrosActuales.where((m) => m['uid'] != miembroUid).toList();
+      await FirebaseFirestore.instance.collection('familias').doc(idFamilia).update({
+        'miembros': nuevosMiembros
+      });
+
+      // 2. Limpiar el idfamilia en el documento del usuario expulsado
+      await FirebaseFirestore.instance.collection('usuarios').doc(miembroUid).update({
+        'idfamilia': ''
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Miembro expulsado correctamente')));
+        (context as Element).markNeedsBuild();
+      }
+    } catch (e) {
+      debugPrint("Error al expulsar: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -38,7 +78,13 @@ class InfoFamilia extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data == null || !snapshot.data!.exists) {
-            return const Center(child: Text('No se encontró información de familia.'));
+            return const Center(
+              child: Text(
+                'No se encontró información de familia.\nEs posible que ya no pertenezcas a ninguna.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
+              ),
+            );
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -73,50 +119,53 @@ class InfoFamilia extends StatelessWidget {
                     leading: const Icon(Icons.person),
                     title: Text(miembro['nombre'] ?? 'Sin nombre'),
                     subtitle: Text('Rol actual: $rolActual'),
-                    trailing: (puedeEditar && !esActual)
-                        ? ElevatedButton.icon(
-                            icon: const Icon(Icons.edit, size: 18),
-                            label: const Text("Cambiar rol"),
-                            onPressed: () async {
-                              final nuevoRol = await mostrarSelectorDeRol(
-                                context,
-                                rolActual,
-                              );
-                              if (nuevoRol == null || nuevoRol == rolActual) return;
+                    trailing: (puedeEditar && !esActual) 
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.blue),
+                              onPressed: () async {
+                                final nuevoRol = await mostrarSelectorDeRol(context, rolActual);
+                                if (nuevoRol == null || nuevoRol == rolActual) return;
 
-                              final confirmar = await mostrarConfirmacion(
-                                context,
-                                miembro['nombre'] ?? 'miembro',
-                                rolActual,
-                                nuevoRol,
-                              );
+                                final confirmar = await mostrarConfirmacion(
+                                  context,
+                                  miembro['nombre'] ?? 'miembro',
+                                  rolActual,
+                                  nuevoRol,
+                                );
 
-                              if (confirmar) {
-                                final nuevosMiembros = miembros
-                                    .map((m) => Map<String, dynamic>.from(m))
-                                    .toList();
-                                final idx = nuevosMiembros
-                                    .indexWhere((mm) => mm['uid'] == miembro['uid']);
+                                if (confirmar) {
+                                  final nuevosMiembros = miembros
+                                      .map((m) => Map<String, dynamic>.from(m))
+                                      .toList();
+                                  final idx = nuevosMiembros
+                                      .indexWhere((mm) => mm['uid'] == miembro['uid']);
 
-                                if (idx != -1) {
-                                  nuevosMiembros[idx]['rol'] = nuevoRol;
-                                  await snapshot.data!.reference
-                                      .update({'miembros': nuevosMiembros});
+                                  if (idx != -1) {
+                                    nuevosMiembros[idx]['rol'] = nuevoRol;
+                                    await snapshot.data!.reference
+                                        .update({'miembros': nuevosMiembros});
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                          'Rol cambiado a "$nuevoRol" correctamente'),
-                                      backgroundColor: Colors.green,
-                                    ),
-                                  );
-
-                                  (context as Element).markNeedsBuild();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Rol cambiado correctamente'),
+                                        backgroundColor: Colors.green,
+                                      ),
+                                    );
+                                    (context as Element).markNeedsBuild();
+                                  }
                                 }
-                              }
-                            },
-                          )
-                        : null,
+                              },
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.person_remove, color: Colors.red),
+                              onPressed: () => _expulsarMiembro(context, miembro['uid'], snapshot.data!.id, miembros),
+                            ),
+                          ],
+                        )
+                      : null,
                   ),
                 );
               }),

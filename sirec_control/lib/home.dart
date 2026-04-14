@@ -397,12 +397,7 @@ class HomePageState extends State<HomePage> {
       );
     }
 
-    Widget content;
-    if (rol == 'padre' || rol == 'administrador') {
-      content = const MapaPage();
-    } else {
-      content = Center(child: BotonPanico(familiaId: familiaId!));
-    }
+    Widget content = MapaPage(familiaId: familiaId!);
 
     // Si faltan permisos opcionales pero útiles, se muestran los banners informativos.
     if (!microfonoConcedido || !camaraConcedida) {
