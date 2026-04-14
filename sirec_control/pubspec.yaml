@@ -1,0 +1,68 @@
+name: sirec_control
+description: "boton de panico"
+publish_to: 'Sirec'
+
+version: 0.0.10+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # --- Firebase ---
+  firebase_core: ^4.1.0
+  firebase_auth: ^6.0.2
+  cloud_firestore: ^6.0.1
+
+  # --- Mapa ---
+  flutter_map: ^8.2.2
+  latlong2: ^0.9.0
+
+  # --- Ubicación del dispositivo ---
+  geolocator: ^14.0.2
+
+  # --- segundo plano ---
+  flutter_background_service: ^5.0.5
+  flutter_background_service_android: ^6.2.2 
+
+  # --- permisos ---
+  permission_handler: ^12.0.1
+  shared_preferences: ^2.1.1
+
+  # --- info dispositivo ---
+  android_intent_plus: ^5.0.0
+  device_info_plus: ^10.0.0
+
+  # --- grabacion ---
+  record: ^5.1.2
+  path_provider: ^2.1.2
+  image_picker: ^1.1.2
+
+  # --- audio ---
+  audioplayers: ^6.6.0
+
+dependency_overrides:
+  record_linux: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4   
+
+flutter_icons: 
+  android: true
+  ios: true
+  image_path: "assets/icon/sirec.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/logo_sirec.png
+    - assets/images/sirec_black.jpg
+    - assets/icon/sirec.png
+    - assets/icon/sirec_black.png
+    

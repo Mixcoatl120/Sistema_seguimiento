@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "139877464045",
+    "project_id": "sirec-emergencia",
+    "storage_bucket": "sirec-emergencia.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:139877464045:android:3980f90dd6d7952f2659e4",
+        "android_client_info": {
+          "package_name": "com.example.sirec_control"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBAbNE5hJoFJEmEc7Jjmn0rLK4dsMiv3-E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
