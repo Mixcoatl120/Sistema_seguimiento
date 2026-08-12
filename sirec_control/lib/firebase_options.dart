@@ -49,21 +49,22 @@ class DefaultFirebaseOptions {
     }
   }
 
+    // aqui va la api key de su firebase cuando creen su proyecto
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBAbNE5hJoFJEmEc7Jjmn0rLK4dsMiv3-E',
-    appId: '1:139877464045:android:3980f90dd6d7952f2659e4',
-    messagingSenderId: '139877464045',
-    projectId: 'sirec-emergencia',
-    storageBucket: 'sirec-emergencia.firebasestorage.app',
+    apiKey:,
+    appId: ,
+    messagingSenderId: ,
+    projectId: ,
+    storageBucket: ,
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCH5PKkbvC55l2fjCPuU2h2dc9VyUr4fYI',
-    appId: '1:139877464045:ios:758c045a742535b62659e4',
-    messagingSenderId: '139877464045',
-    projectId: 'sirec-emergencia',
-    storageBucket: 'sirec-emergencia.firebasestorage.app',
-    iosBundleId: 'com.example.sirecControl', 
+    apiKey:,
+    appId: ,
+    messagingSenderId:,
+    projectId: ,
+    storageBucket: ,
+    iosBundleId: , 
   );
 
 }
