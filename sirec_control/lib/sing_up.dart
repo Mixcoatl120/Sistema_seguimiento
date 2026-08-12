@@ -90,11 +90,6 @@ class SignUpScreenState extends State<SignUpScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Imagen arriba
-            Image.asset(
-              'assets/images/logo_sirec.png',
-              height: 120,
-            ),
             SizedBox(height: 120),
             InputsPersonalizados(
               label: "Email", 
